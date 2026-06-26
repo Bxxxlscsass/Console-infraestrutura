@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console de TI - Monitoramento Global</title>
+    <style>
+        /* Paleta de Cores Estilo Monitor de Matriz de TI (NOC Terminal) */
+        :root {
+            --bg-main: #0f131a;          /* Fundo ultra-escuro (estilo terminal) */
+            --bg-panel: #171d26;         /* Painéis grafite fechados */
+            --bg-input: #0b0e12;         /* Caixa de texto preta de console */
+            --text-main: #cbd5e0;        /* Texto cinza claro legível à distância */
+            --text-muted: #718096;       /* Subtextos e labels técnicos */
+            --primary-blue: #0076d6;     /* Azul de sistema operacional de servidor */
+            --accent-cyan: #00b4d8;      /* Ciano de link ativo de rede */
+            --border-color: #242f3e;     /* Divisores de grade finos */
+            --danger-color: #ff4d4d;     /* Vermelho de alerta de queda/incidente */
+            --success-color: #00e676;    /* Verde neon de sistema online */
+        }
+
+        body {
+            font-family: 'Consolas', 'Segoe UI', monospace; /* Fonte estilo código/NOC */
+            margin: 0;
+            padding: 15px;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+        }
+
+        /* Cabeçalho Estilo Terminal de Monitor */
+        .monitor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .monitor-header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffffff;
+            letter-spacing: 2px;
+        }
+
+        .system-status {
+            font-size: 12px;
+            color: var(--success-color);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--success-color);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--success-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Layout Monitor Fullscreen de Duas Colunas */
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        @media (min-width: 1200px) {
+            .dashboard-layout {
+                grid-template-columns: 3fr 1fr; /* Tabela ganha mais espaço no monitor */
+            }
+        }
+
+        /* Barra de Controle Superior (Busca e Abas Alinhadas) */
+        .control-bar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .search-input {
+            width: 320px;
+            padding: 8px 12px;
+            font-family: inherit;
+            font-size: 13px;
+            background-color: var(--bg-input);
+            color: var(--accent-cyan);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 5px rgba(0, 180, 216, 0.4);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            background-color: var(--bg-panel);
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .tab-btn:hover {
+            background-color: var(--border-color);
+            color: #ffffff;
+        }
+
+        .tab-btn.active {
+            background-color: var(--primary-blue);
+            color: #ffffff;
+            border-color: var(--primary-blue);
+        }
+
+        /* Módulos do Monitor */
+        .panel-box {
+            background-color: var(--bg-panel);
+            border-radius: 6px;
+            padding: 15px;
+            height: fit-content;
+            border: 1px solid var(--border-color);
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .panel-title {
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #ffffff;
+            border-left: 3px solid var(--primary-blue);
+            padding-left: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 12px;
+        }
+
+        th {
+            background-color: var(--bg-input);
+            color: var(--text-muted);
+            padding: 10px;
+            font-weight: bold;
+            border-bottom: 2px solid var(--border-color);
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        tr:hover {
+            background-color: #1c232e;
+        }
+
+        /* Botão Técnico de Deleção */
+        .btn-delete {
+            background-color: transparent;
+            color: var(--danger-color);
+            border: 1px solid var(--danger-color);
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 11px;
+        }
+
+        .btn-delete:hover {
+            background-color: var(--danger-color);
+            color: #ffffff;
+        }
+
+        /* Formulários Compactos de Console */
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            margin-bottom: 4px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 8px;
+            font-family: inherit;
+            font-size: 12px;
+            background-color: var(--bg-input);
+            color: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-cyan);
+        }
+
+        .btn-submit {
+            width: 100%;
+            background-color: #10b981; /* Verde esmeralda para confirmação de script */
+            color: white;
+            border: none;
+            padding: 10px;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        .btn-submit:hover {
+            background-color: #059669;
+        }
+
+        /* Alertas Visuais para Telas de Operação */
+        .badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            display: inline-block;
+            text-transform: uppercase;
+        }
+        .badge-alta { background-color: #4a1d1d; color: #ff8888; border: 1px solid #742a2a; }
+        .badge-media { background-color: #4a321d; color: #ffb870; border: 1px solid #7b341e; }
+        .badge-baixa { background-color: #1d3b32; color: #88ffcc; border: 1px solid #234e52; }
+        .badge-concluida { background-color: #143224; color: #81e6d9; border: 1px solid #1c4532; }
+        .badge-aberta { background-color: #2d3748; color: #edf2f7; border: 1px solid #4a5568; }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.6; }
+            50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 12px var(--success-color); }
+            100% { transform: scale(0.9); opacity: 0.6; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Cabeçalho Técnico de Monitoramento -->
+    <div class="monitor-header">
+        <h1>SYS.MONITOR // CONSOLE DE INFRAESTRUTURA</h1>
+        <div class="system-status">
+            <div class="status-dot"></div>
+            MONITOR ATIVO // LIVE DATALOGGER
+        </div>
+    </div>
+
+    <!-- Barra de Controle Unificada Superior -->
+    <div class="control-bar">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTable('Cliente')">Clientes</button>
+            <button class="tab-btn" onclick="switchTable('Tecnico')">Técnicos</button>
+            <button class="tab-btn" onclick="switchTable('Servico')">Serviços</button>
+            <button class="tab-btn" onclick="switchTable('Finalizacao')">Finalizações</button>
+            <button class="tab-btn" onclick="switchTable('OrdemServico')">Ordens de Serviço</button>
+        </div>
+        <div class="search-container">
+            <input type="text" id="table-search" class="search-input" placeholder="SYS_QUERY > Inserir termo de busca..." onkeyup="filterTable()">
+        </div>
+    </div>
+
+    <!-- Layout Estilo Monitor NOC -->
+    <div class="dashboard-layout">
+        
+        <!-- Coluna do Log de Dados Principal -->
+        <div class="panel-box table-container">
+            <div class="panel-title" id="table-title">Clientes</div>
+            <div id="table-content"></div>
+        </div>
+
+        <!-- Coluna de Injeção de Scripts / Registros -->
+        <div class="panel-box">
+            <div class="panel-title" id="form-title">Cadastrar Cliente</div>
+            <form id="dynamic-form" onsubmit="handleFormSubmit(event)">
+                <div id="form-fields"></div>
+                <button type="submit" class="btn-submit">Adicionar Registro</button>
+            </form>
+        </div>
+
+    </div>
+
+<script>
+    // Banco de dados em memória contendo as estruturas e dados originais
+    const database = {
+        Cliente: {
+            headers: ["ID", "Nome", "Telefone", "E-mail", "Endereço", "Data de Cadastro"],
+            rows: [
+                [1, "Ana Paula Martins", "(41) 99548-2001", "ana.martins@email.com", "Rua das Flores, 100, Curitiba - PR", "17/11/2025"],
+                [2, "Bruno Almeida", "(41) 98547-1030", "bruno.almeida@email.com", "Av. Paraná, 250, Boa Vista, Curitiba - PR", "19/11/2025"],
+                [3, "Camila Ferreira", "(41) 99325-5689", "camila.ferreira@email.com", "Rua XV de Novembro, 50, Curitiba - PR", "21/11/2025"],
+                [4, "Diego Santos", "(41) 98251-6467", "diego.santos@email.com", "Rua Chile, 90, Rebouças, Curitiba - PR", "25/11/2025"],
+                [5, "Allan Felipe", "(41) 98571-1867", "allan.silva@email.com", "Rua do Hardware, 51, Rebouças, Curitiba - PR", "28/11/2025"]
+            ]
+        },
+        Tecnico: {
+            headers: ["ID", "Nome", "Telefone", "E-mail", "Endereço", "Especialidade", "Data de Admissão"],
+            rows: [
+                [1, "Carlos Henrique Lima", "(41) 99784-3121", "carlos.lima@email.com", "Rua da Tecnologia, 10, Curitiba - PR", "Redes", "10/11/2025"],
+                [2, "Fernanda Souza", "(41) 98954-6582", "fernanda.souza@email.com", "Rua do Hardware, 20, Batel, Curitiba - PR", "Hardware", "12/11/2025"],
+                [3, "Marcos Vieira", "(41) 99741-9153", "marcos.vieira@email.com", "Rua do Software, 30, Rebouças, Curitiba - PR", "Software", "14/11/2025"]
+            ]
+        },
+        Servico: {
+            headers: ["ID", "Descrição", "Valor Padrão", "Tempo Estimado"],
+            rows: [
+                [1, "Diagnóstico técnico", "R$ 50,00", "00:30"],
+                [2, "Limpeza interna e preventiva", "R$ 80,00", "01:00"],
+                [3, "Troca de SSD (mão de obra)", "R$ 300,00", "01:30"],
+                [4, "Formatação e reinstalação do S.O.", "R$ 150,00", "02:00"]
+            ]
+        },
+        Finalizacao: {
+            headers: ["ID", "Data Finalização", "Data Entrega", "Valor", "Pagamento", "Garantia", "Observação"],
+            rows: [
+                [1, "02/02/2026 14:30", "02/03/2026", "R$ 140,00", "Pix", "30 dias", "Serviço concluído sem pendências."],
+                [2, "03/02/2026 16:10", "04/02/2026", "R$ 130,00", "Dinheiro", "30 dias", "Equipamento entregue após testes."]
+            ]
+        },
+        OrdemServico: {
+            headers: ["ID", "Cliente", "Técnico", "Status", "Prioridade"],
+            rows: [
+                [1, "Ana Paula Martins", "Carlos Henrique Lima", "Aberta", "Alta"],
+                [2, "Bruno Almeida", "Fernanda Souza", "Concluída", "Média"],
+                [3, "Diego Santos", "Marcos Vieira", "Aberta", "Baixa"]
+            ]
+        }
+    };
+
+    let currentActiveTable = 'Cliente';
+
+    // Função para alternar visualização das tabelas
+    function switchTable(tableName) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        if (event && event.target) {
+            event.target.classList.add('active');
+            document.getElementById('table-title').innerText = event.target.innerText;
+            document.getElementById('form-title').innerText = `Cadastrar ${event.target.innerText.slice(0, -1)}`;
+        }
+
+        currentActiveTable = tableName;
+        document.getElementById('table-search').value = '';
+
+        renderTable(tableName);
+        generateFormFields(tableName);
+    }
+
+    // Renderiza as tabelas injetando badges lógicas para a aba de Ordens de Serviço
+    function renderTable(tableName, filterText = '') {
+        const data = database[tableName];
+        
+        // CORREÇÃO: Readicionados os elementos essenciais <table> e <thead> que haviam sido removidos
+        let html = '<table><thead><tr>';
+        data.headers.forEach(h => html += `<th>${h}</th>`);
+        html += '<th style="text-align: center;">Ações</th></tr></thead><tbody>';
+            
+        data.rows.forEach((row, index) => {
+            const rowText = row.join(' ').toLowerCase();
+            
+            if (!filterText || rowText.includes(filterText.toLowerCase())) {
+                html += '<tr>';
+                row.forEach((cell, cellIndex) => {
+                    // Injeta estilização visual baseada em painéis de incidentes de TI
+                    if (tableName === 'OrdemServico' && (cellIndex === 2 || cellIndex === 3)) {
+                        const badgeClass = cell.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        html += `<td><span class="badge badge-${badgeClass}">${cell}</span></td>`;
+                    } else {
+                        html += `<td>${cell}</td>`;
+                    }
+                });
+                
+                // Botão para deletar a linha do array - CORREÇÃO: Ajustada a interpolação com crases
+                html += `<td style="text-align: center;"><button class="btn-delete" onclick="deleteRow('${tableName}', ${index})">Excluir</button></td>`;
+                html += '</tr>';
+            }
+        });
+
+        html += '</tbody></table>';
+        document.getElementById('table-content').innerHTML = html;
+    }
+
+    // Filtro em tempo real digitado na barra de buscas
+    function filterTable() {
+        const query = document.getElementById('table-search').value;
+        renderTable(currentActiveTable, query);
+    }
+
+    // Remove um elemento específico da tabela correspondente
+    function deleteRow(tableName, index) {
+        if (confirm("Tem certeza que deseja remover este item do painel?")) {
+            database[tableName].rows.splice(index, 1);
+            renderTable(tableName);
+        }
+    }
+
+    // Monta os campos de input de forma dinâmica com base nos cabeçalhos (escondendo o ID)
+    function generateFormFields(tableName) {
+        const headers = database[tableName].headers;
+        const container = document.getElementById('form-fields');
+        container.innerHTML = '';
+
+        headers.forEach(header => {
+            if (header === "ID") return; // Ignora o ID para gerá-lo de forma automática sequencial
+
+            const div = document.createElement('div');
+            div.className = 'form-group';
+
+            // Trata campos especiais para select box de status/prioridade de TI - CORREÇÃO: Sintaxe consertada
+            if (tableName === 'OrdemServico' && (header === 'Status' || header === 'Prioridade')) {
+                const options = header === 'Status' ? ['Aberta', 'Concluída'] : ['Alta', 'Média', 'Baixa'];
+                div.innerHTML = `
+                    <label>${header}</label>
+                    <select class="form-control" name="${header}" required>
+                        ${options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                    </select>
+                `;
+            } else {
+                div.innerHTML = `
+                    <label>${header}</label>
+                    <input type="text" class="form-control" name="${header}" placeholder="Inserir ${header.toLowerCase()}..." required>
+                `;
+            }
+            container.appendChild(div);
+        });
+    }
+
+    // Captura o submit do formulário e insere o novo vetor dentro do banco local
+    function handleFormSubmit(event) {
+        event.preventDefault();
+        const form = event.target;
+        const formData = new FormData(form);
+        const data = database[currentActiveTable];
+
+        // Calcula de forma incremental qual o próximo ID único - CORREÇÃO: Mapeamento de matriz corrigido para r[0]
+        const nextId = data.rows.length > 0 ? Math.max(...data.rows.map(r => r[0])) + 1 : 1;
+        const newRow = [nextId];
+
+        // Varre as chaves para ordenar as inserções na sequência correta das colunas
+        data.headers.forEach(header => {
+            if (header === "ID") return;
+            newRow.push(formData.get(header));
+        });
+
+        data.rows.push(newRow);
+        form.reset();
+        renderTable(currentActiveTable);
+    }
+
+    // Inicialização padrão ao carregar a página
+    renderTable('Cliente');
+    generateFormFields('Cliente');
+</script>
+
